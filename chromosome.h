@@ -19,6 +19,9 @@ class chromosome {
     gate* random_gate(int position);
     uint64_t get_value(int idx, uint64_t in[WORD_LENGTH]);
     UINT get_value(int idx, UINT in);
+    void setUsedTrue(int idx);
+    int countUsed();
+    double getErr(uint64_t out, uint64_t expOut, int bitPos);
     UINT  mGate_cnt;
 
 public:

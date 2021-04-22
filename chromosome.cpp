@@ -24,6 +24,18 @@ gate chromosome::at(int idx) {
     return mChromosome[idx - WORD_LENGTH];
 }
 
+void chromosome::setUsedTrue(int idx) {
+    mChromosome[idx].mUsed = true; 
+}
+
+int chromosome::countUsed() {
+    int sum = 0;
+    for (int i = 0; i < MAT_HEIGHT * MAT_WIDTH; i++) {
+        sum += mChromosome[i].mUsed;
+    }
+    return sum;
+}
+
 template<class T>
 inline std::string format_binary(T x)
 {
@@ -46,9 +58,9 @@ inline UINT bit_cnt(T x)
 }
 
 
-double getErr(uint64_t out, uint64_t expOut, int bitPos) {
-    // return pow(2, bitPos) * bit_cnt(out ^ expOut);
-    return bit_cnt(out ^ expOut);
+double chromosome::getErr(uint64_t out, uint64_t expOut, int bitPos) {
+    return countUsed() + pow(2, bitPos) * bit_cnt(out ^ expOut);
+    // return (bitPos * bitPos + 1) * bit_cnt(out ^ expOut);
 }
 
 /**
@@ -77,16 +89,6 @@ void chromosome::print(char *pathEval, char *pathCircuit, table tab) {
     for (int i = 0; i <= U_MAX; i++) {
         evalOut << std::to_string(i) << "," << std::to_string(get(out, i)) << "," << std::to_string(get(tab.mTableOut, i)) << "," << format_binary(get(out, i)) << "," << format_binary(get(tab.mTableOut, i)) << "\n";
     }
-    
-    // int idx = 0;
-    // for (gate g: mChromosome) {
-    //     if (mUsedGates[idx]) {
-    //         g.print(circuitOut);
-    //     }
-    //     circuitOut << "\n";
-    //     idx++;
-    // }
-
 }
 
 /**
@@ -100,6 +102,7 @@ uint64_t chromosome::get_value(int idx, uint64_t in[WORD_LENGTH]) {
         return in[idx];
     }
     gate gate = at(idx);
+    setUsedTrue(idx);
     uint64_t a = get_value(gate.in_1, in);
     uint64_t b = get_value(gate.in_2, in);
     return gate.exec(a, b);

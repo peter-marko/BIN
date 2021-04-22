@@ -13,7 +13,7 @@ public:
     int in_1;
     int in_2;
     int func;
-    UINT used;
+    bool mUsed;
     uint64_t value;
     double err;
     std::mt19937 gen;

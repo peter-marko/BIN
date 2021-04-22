@@ -7,14 +7,14 @@ gate::gate(int position, std::mt19937 aGen) {
     in_2 = rand() % in_range;
     func = rand() % NUM_FUNCS;
     value = 0;
-    used = 0;
+    bool mUsed = false;
     gen = aGen;
 }
 
 gate::gate() {
     value = 0;
     err = 0;
-    used = 0;
+    bool mUsed = false;
 }
 
 gate::gate(gate *g) {
@@ -23,7 +23,7 @@ gate::gate(gate *g) {
     func = g->func;
     value = 0;
     err = 0;
-    used = 0;
+    bool mUsed = false;
 }
 
 void gate::print(std::ofstream &circuitOut) {
@@ -75,7 +75,7 @@ void gate::mutate(int position) {
     min = (min < 0) ? 0 : min;
 
     std::uniform_int_distribution<> distr(min, max - 1);
-    switch (rand() % 6)
+    switch (rand() % 5)
     {
     case 0:
     case 1:
@@ -86,7 +86,6 @@ void gate::mutate(int position) {
         in_2 = distr(gen);
         break;
     case 4:
-    case 5:
         func = rand() % NUM_FUNCS;
         break;
     }
