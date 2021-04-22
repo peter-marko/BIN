@@ -47,7 +47,8 @@ inline UINT bit_cnt(T x)
 
 
 double getErr(uint64_t out, uint64_t expOut, int bitPos) {
-    return pow(2, bitPos) * bit_cnt(out ^ expOut);
+    // return pow(2, bitPos) * bit_cnt(out ^ expOut);
+    return bit_cnt(out ^ expOut);
 }
 
 /**
@@ -74,7 +75,7 @@ void chromosome::print(char *pathEval, char *pathCircuit, table tab) {
         simulate(tab.mTableIn[i], out[i]);
     }
     for (int i = 0; i <= U_MAX; i++) {
-        evalOut << format_binary(get(out, i)) << "," << format_binary(get(tab.mTableOut, i)) << "\n";
+        evalOut << std::to_string(i) << "," << std::to_string(get(out, i)) << "," << std::to_string(get(tab.mTableOut, i)) << "," << format_binary(get(out, i)) << "," << format_binary(get(tab.mTableOut, i)) << "\n";
     }
     
     // int idx = 0;

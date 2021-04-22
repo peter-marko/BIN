@@ -56,43 +56,48 @@ chromosome roulette(chromosome aPopulation[POP_SIZE], double total_fitness) {
 /**
  * \brief Create new population from existing one using roulette algorithm
  * \param aPopulation [in/out] current population, new population will be stored here
- * \param aTotalBest best chromosome evere seen
  * \param aTab Table of correct results e.g. for sin(x)
  * \return Fitness of best chromosome in current population
  */
-double updatePopulation(chromosome aPopulation[POP_SIZE], chromosome *aTotalBest, table aTab) {
+chromosome updatePopulation(chromosome aPopulation[POP_SIZE], table aTab) {
     double total_fitness = 0;
     chromosome new_pop[POP_SIZE];
     chromosome best = aPopulation[0];
+    chromosome prevBest = aPopulation[1];
     double total_cost = 0;
     double total_gate_cnt = 0;
     for (int i = 0; i < POP_SIZE; i++) {
         chromosome ch = aPopulation[i];
-        if (ch.mFitness > best.mFitness) {
+        if (ch.mFitness >= best.mFitness && i != 1) {
+            prevBest = best;
             best = ch;
+            printf("fitness %g\n", best.mFitness);
         }
         total_fitness += ch.mFitness;
         total_cost += ch.mCost;
         total_gate_cnt += ch.gate_cnt();
     }
-    if (best.mFitness >= aTotalBest->mFitness) {
-        memcpy(aTotalBest, &best, sizeof(chromosome));
-    }
     if (best.mFitness > 0.9) {
-        return best.mFitness;
+        return best;
     }
+
     
-    new_pop[0] = *aTotalBest;
+    new_pop[0] = best;
+    new_pop[1] = prevBest;
     // printf("%g, %g,%g,%u,%g\n", aTotalBest->mFitness, new_pop[0].mFitness, total_cost / POP_SIZE, best.gate_cnt(), total_gate_cnt / POP_SIZE);
-    for (int i = 1; i < POP_SIZE; i++) {
+    for (int i = 2; i < POP_SIZE - 1; i++) {
         chromosome ch = new_pop[0];
         ch.mutate();
         new_pop[i] = ch;
     }
+    
+    chromosome ch = prevBest;
+    ch.mutate();
+    new_pop[POP_SIZE - 1] = ch;
     population_fitness(new_pop, aTab);
     memcpy(aPopulation, new_pop, sizeof(chromosome) * POP_SIZE);
     // aPopulation = new_pop;
-    return aTotalBest->mFitness;
+    return best;
 }
 
 int main(int argc, char *argv[]) {
@@ -109,7 +114,7 @@ int main(int argc, char *argv[]) {
     
     for (int iteration = 0; iteration < ITERATIONS; iteration++) {
         population_fitness(population, tab);
-        updatePopulation(population, &best_chromosome, tab);
+        best_chromosome = updatePopulation(population, tab);
     }
     best_chromosome.print(argv[1], argv[2], tab);
     

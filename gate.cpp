@@ -75,15 +75,18 @@ void gate::mutate(int position) {
     min = (min < 0) ? 0 : min;
 
     std::uniform_int_distribution<> distr(min, max - 1);
-    switch (rand() % 3)
+    switch (rand() % 6)
     {
     case 0:
+    case 1:
         in_1 = distr(gen);
         break;
-    case 1:
+    case 2:
+    case 3:
         in_2 = distr(gen);
         break;
-    case 2:
+    case 4:
+    case 5:
         func = rand() % NUM_FUNCS;
         break;
     }
