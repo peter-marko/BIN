@@ -6,12 +6,12 @@
 
 #define WORD_LENGTH 8       // length of input and output word, e.g. 8 bits
 #define POP_SIZE 25         // number of chromosomes in population
-#define N_MUT 1
-#define ITERATIONS 50000     // number of generations
+#define N_MUT 7
+#define ITERATIONS 300000     // number of generations
 #define MAT_WIDTH 7
 #define MAT_HEIGHT 8
 #define L_BACK 8
-#define ELITISM 10           // number of children of best chromosome
+#define P_FIT 0.75
 
 typedef uint8_t UINT;
 typedef UINT BOOL;

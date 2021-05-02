@@ -5,15 +5,36 @@ double popcount(UINT n) {
     return b.count();
 }
 
+/**
+ * \brief Generate and return random double in range fMin, fMax
+ */
+double fRand(double fMin, double fMax) {
+    double f = (double)rand() / RAND_MAX;
+    return fMin + f * (fMax - fMin);
+}
+
+
 chromosome::chromosome() {
     std::random_device rd; // obtain a random number from hardware
     std::mt19937 gen(rd()); // seed the generator
-    mGate_cnt = UNDEFINED;
     for (int i = 0; i < MAT_HEIGHT * MAT_WIDTH; i++) {
         gate g(i, gen);
         mChromosome[i] = g;
     }
     mFitness = 0;
+}
+
+void chromosome::init() {
+    mDomination = 0;
+    mCrowdD = 0; //MAT_HEIGHT * MAT_WIDTH;
+}
+
+void chromosome::dominated(chromosome &other) {
+    if ((mErr >= other.mErr && mGates > other.mGates) ||
+        (mErr > other.mErr && mGates >= other.mGates))
+    {
+        mDomination++;
+    }
 }
 
 /**
@@ -59,7 +80,7 @@ inline UINT bit_cnt(T x)
 
 
 double chromosome::getErr(uint64_t out, uint64_t expOut, int bitPos) {
-    return countUsed() + pow(2, bitPos) * bit_cnt(out ^ expOut);
+    return pow(2, bitPos) * bit_cnt(out ^ expOut);
     // return (bitPos * bitPos + 1) * bit_cnt(out ^ expOut);
 }
 
@@ -74,12 +95,7 @@ double chromosome::getErr(uint64_t out, uint64_t expOut, int bitPos) {
  *      - Name of function used
  * \param tab Table of correct values for UINT inputs
  */
-void chromosome::print(char *pathEval, char *pathCircuit, table tab) {
-    printf("todo chromosome::print() %g %g\n", mFitness, mCost);
-    std::ofstream evalOut;
-    evalOut.open(pathEval, std::ios::out | std::ios::trunc );
-    std::ofstream circuitOut;
-    circuitOut.open(pathCircuit, std::ios::out | std::ios::trunc );
+void chromosome::print(std::ofstream &evalOut, std::ofstream &circuitOut, table tab) {
     
 
     uint64_t out[4][WORD_LENGTH] = {0};
@@ -89,6 +105,13 @@ void chromosome::print(char *pathEval, char *pathCircuit, table tab) {
     for (int i = 0; i <= U_MAX; i++) {
         evalOut << std::to_string(i) << "," << std::to_string(get(out, i)) << "," << std::to_string(get(tab.mTableOut, i)) << "," << format_binary(get(out, i)) << "," << format_binary(get(tab.mTableOut, i)) << "\n";
     }
+    
+    int idx = 0;
+    for (gate g: mChromosome) {
+        g.print(circuitOut);
+        idx++;
+    }
+    circuitOut << "\n";
 }
 
 /**
@@ -129,21 +152,6 @@ UINT chromosome::get_value(int idx, UINT in) {
 }
 
 /**
- * \brief Count used gates
- * \return Number of gates in use
- */
-UINT chromosome::gate_cnt(){
-    if (mGate_cnt != UNDEFINED)
-        return mGate_cnt;
-    UINT cnt = 42;
-    // for (int i = 0; i < GATE_LIMIT; i++) {
-    //     UINT is_used = mUsedGates[i];
-    //     cnt += is_used;
-    // }
-    return cnt;
-}
-
-/**
  * \brief Calculate fitness of chromosome as sum of squares
  * \param tab Table of expected values
  */
@@ -152,14 +160,14 @@ void chromosome::fitness(table tab) {
     for (int i = 0; i < 4; i++) {
         uint64_t out[WORD_LENGTH] = {0};
         simulate(tab.mTableIn[i], out);
-        // printf("simulated out %lu %lu %lu %lu %lu %lu %lu %lu\n", out[0], out[1], out[2], out[3], out[4 + 0], out[4 + 1], out[4 + 2], out[4 + 3]);
         for (UINT j = 0; j < WORD_LENGTH; j++) {
             err += getErr(out[j], tab.mTableOut[i][j], j);
         }
     }
 
-    mCost = err; // * (1 + gate_cnt() * FEW_GATES_IMPORTANCE);
-    mFitness = 1 / (mCost + 1);
+    mErr = err;
+    mGates = countUsed();
+    mFitness = 1 / (mErr + 1);
 }
 
 /**

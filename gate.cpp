@@ -7,14 +7,14 @@ gate::gate(int position, std::mt19937 aGen) {
     in_2 = rand() % in_range;
     func = rand() % NUM_FUNCS;
     value = 0;
-    bool mUsed = false;
+    mUsed = false;
     gen = aGen;
 }
 
 gate::gate() {
     value = 0;
     err = 0;
-    bool mUsed = false;
+    mUsed = false;
 }
 
 gate::gate(gate *g) {
@@ -23,7 +23,7 @@ gate::gate(gate *g) {
     func = g->func;
     value = 0;
     err = 0;
-    bool mUsed = false;
+    mUsed = false;
 }
 
 void gate::print(std::ofstream &circuitOut) {
@@ -31,19 +31,19 @@ void gate::print(std::ofstream &circuitOut) {
     circuitOut << std::to_string(in_1) << "," << std::to_string(in_2) << ",";
     switch (func) {
         case AND:
-            circuitOut << "AND";
+            circuitOut << "AND,";
             break;
         case NAND:
-            circuitOut << "NAND";
+            circuitOut << "NAND,";
             break;
         case OR:
-            circuitOut << "OR";
+            circuitOut << "OR,";
             break;
         case NOR:
-            circuitOut << "NOR";
+            circuitOut << "NOR,";
             break;
         case XOR:
-            circuitOut << "XOR";
+            circuitOut << "XOR,";
             break;
     }
 }

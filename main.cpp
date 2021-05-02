@@ -1,11 +1,15 @@
 #include <iostream>
 #include <algorithm>
 #include <time.h>
+#include <map>
 
 #include "chromosome.h"
 #include "params.h"
 
 using namespace std;
+
+
+table tab = table();
 
 /**
  * \brief Initialize population with chromosomes
@@ -13,88 +17,162 @@ using namespace std;
  */
 void create_population(vector<chromosome> *population) {
     for (int i = 0; i < POP_SIZE; i++) {
-        population->push_back(chromosome());
+        chromosome ch;
+        ch.fitness(tab);
+        population->push_back(ch);
     }
 }
 
-/**
- * \brief Calculate fitness of each memeber of population
- * \param population [in/out] Chromosomes which fitness should be calculated
- * \param tab Table of correct results e.g for sin(x)
- */
-void population_fitness(vector<chromosome> *population, table tab) {
-    for (UINT i = 0; i < population->size(); i++) {
-        population->at(i).fitness(tab);
+void printPopulation(vector<chromosome> &population) {
+    for (chromosome ch : population) {
+        printf("(%d, %d %g), ", ch.mDomination, ch.mGates, ch.mErr);
+    }
+    printf("\n");
+}
+
+bool dominationCmp(chromosome a, chromosome b) {
+    return (a.mDomination < b.mDomination);
+}
+
+bool distanceCmp(chromosome a, chromosome b) {
+    return (a.mCrowdD > b.mCrowdD);
+}
+
+bool gatesCmp(chromosome a, chromosome b) {
+    return (a.mGates < b.mGates);
+}
+
+bool errCmp(chromosome a, chromosome b) {
+    return (a.mErr < b.mErr);
+}
+
+void crowdingDistanceAssignment(vector<chromosome> &nonDomSet, double gatesRange, double errRange) {
+    size_t size = nonDomSet.size();
+    if (size == 0)
+        return;
+    int end = size - 1;
+
+    // objective mGates
+    sort(nonDomSet.begin(), nonDomSet.end(), gatesCmp);
+    nonDomSet[0].mCrowdD = INFINITY;
+    nonDomSet[end].mCrowdD = INFINITY;
+    for (int i = 1; i < end; i++) {
+        // double prev = nonDomSet[i].mCrowdD;
+        nonDomSet[i].mCrowdD += (nonDomSet[i + 1].mGates - nonDomSet[i - 1].mGates) / gatesRange;
+    }
+    
+    // objective mErr
+    sort(nonDomSet.begin(), nonDomSet.end(), errCmp);
+    for (int i = 1; i < end; i++) {
+        // double prev = nonDomSet[i].mCrowdD;
+        nonDomSet[i].mCrowdD += (nonDomSet[i + 1].mErr - nonDomSet[i - 1].mErr) / errRange;
+        // printf(" %g + (%g - %g) / %g = %g\n", prev, nonDomSet[i + 1].mErr, nonDomSet[i - 1].mErr, errRange, nonDomSet[i].mCrowdD);
     }
 }
 
-/**
- * \brief Generate and return random double in range fMin, fMax
- */
-double fRand(double fMin, double fMax) {
-    double f = (double)rand() / RAND_MAX;
-    return fMin + f * (fMax - fMin);
+void setMinMax(double cur, double &min, double &max) {
+    min = (cur < min) ? cur : min;
+    max = (cur > max) ? cur : max;
 }
 
-/**
- * \brief Stochastic algorithm for selection of good chromosomes
- * \param aPopulation [in] Current population
- * \param total_fitness Sum of all fitness values from population
- */
-chromosome roulette(vector<chromosome> *aPopulation, double total_fitness) {
-    double r = fRand(0, total_fitness);
-    double fitness_sum = 0;
-    for (int i = 0; i < POP_SIZE; i++) {
-        fitness_sum += aPopulation->at(i).mFitness;
-        if (r < fitness_sum) {
-            return(aPopulation->at(i));
+map<int, vector<chromosome>> nonDominatedSort(vector<chromosome> &aPopulation,
+    double &gatesRange, double &errRange)
+{
+    map<int, vector<chromosome>> nonDomSets;
+    double minGates = INFINITY;
+    double maxGates = 0;
+    double minErr = INFINITY;
+    double maxErr = 0;
+    size_t i = 0;
+    size_t tmpPopSize = aPopulation.size();
+    int deduplicitSize = 5;
+    bool allGates[deduplicitSize][MAT_HEIGHT * MAT_WIDTH] = {false};
+    for (chromosome &ch : aPopulation) {
+        ch.init();
+        setMinMax(ch.mGates, minGates, maxGates);
+        setMinMax(ch.mErr, minErr, maxErr);
+        for (size_t j = 0; j < tmpPopSize; j++) {
+            if (i != j) {
+                ch.dominated(aPopulation[j]);
+            }
         }
+        int dominated = ch.mDomination;
+        if ( nonDomSets.find(dominated) == nonDomSets.end() ) {
+            nonDomSets[dominated] = vector<chromosome> ();
+        }
+        if (dominated >= deduplicitSize || !allGates[dominated][ch.mGates]) {
+            if (dominated < deduplicitSize) {
+                allGates[dominated][ch.mGates] = true;
+            }
+            nonDomSets[dominated].push_back(ch);
+        }
+        // else {
+        //     printf("ee %d\n", nonDomSets[dominated].size());
+        // }
+        i++;
     }
-    return(aPopulation->at(0));
+    gatesRange = maxGates - minGates;
+    errRange = maxErr - minErr;
+
+    return nonDomSets;
+}
+
+void createOffspring(vector<chromosome> &aPopulation) {
+    for (int i = 0; i < POP_SIZE; i++) {
+        int idxA = rand() % POP_SIZE;
+        int idxB = rand() % POP_SIZE;
+        double r = fRand(0, 1);
+        chromosome winner;
+        if (aPopulation[idxA].mDomination < aPopulation[idxB].mDomination) {
+            winner = (r < P_FIT) ? aPopulation[idxA] : aPopulation[idxB];
+        } else {
+            winner = (r < P_FIT) ? aPopulation[idxB] : aPopulation[idxA];
+        }
+        winner.mutate();
+        winner.fitness(tab);
+        aPopulation.push_back(winner);
+    }
 }
 
 /**
  * \brief Create new population from existing one using roulette algorithm
  * \param aPopulation [in/out] current population, new population will be stored here
- * \param aTotalBest best chromosome evere seen
- * \param aTab Table of correct results e.g. for sin(x)
- * \return Fitness of best chromosome in current population
  */
-double updatePopulation(vector<chromosome> * aPopulation, chromosome *aTotalBest, table aTab) {
+void updatePopulation(vector<chromosome> &aPopulation) {
+    createOffspring(aPopulation);
+    double gatesRange, errRange;
+    map<int, vector<chromosome>> nonDomSets = nonDominatedSort(aPopulation, gatesRange, errRange);
     vector<chromosome> new_pop;
-    double total_fitness = 0;
-    chromosome best = *aPopulation->begin();
-    double total_cost = 0;
-    double total_gate_cnt = 0;
-    for (chromosome ch : *aPopulation) {
-        if (ch.mFitness > best.mFitness) {
-            best = ch;
+    new_pop.reserve(POP_SIZE);
+    for (auto set : nonDomSets) {
+        vector<chromosome> &curSet = set.second;
+        
+        // printf("set %d\n", set.first);
+        // for (chromosome ch : curSet) {
+        //     printf("(%d, %g %g), ", ch.mDomination, ch.mGates, ch.mErr);
+        // }
+        // printf("\n");
+        if (new_pop.size() + curSet.size() <= POP_SIZE) {
+            new_pop.insert(new_pop.end(), curSet.begin(), curSet.end());
+        } else {
+            crowdingDistanceAssignment(curSet, gatesRange, errRange);
+            sort(curSet.begin(), curSet.end(), distanceCmp);
+            int dstIdx = new_pop.size();
+            for (chromosome ch : curSet) {
+                if (dstIdx >= POP_SIZE)
+                    break;
+                new_pop[dstIdx] = ch;
+                dstIdx++;
+            }
+            break;
         }
-        total_fitness += ch.mFitness;
-        total_cost += ch.mCost;
-        total_gate_cnt += ch.gate_cnt();
-    }
-    if (best.mFitness > aTotalBest->mFitness) {
-        *aTotalBest = best;
-    }
-    printf("%g,%g,%u,%g\n", best.mCost, total_cost / POP_SIZE, best.gate_cnt(), total_gate_cnt / POP_SIZE);
-    if (best.mFitness > 0.9) {
-        return best.mFitness;
     }
     
-    for (int i = 0; i < POP_SIZE - ELITISM; i++) {
-        chromosome ch = roulette(aPopulation, total_fitness);
-        ch.mutate();
-        new_pop.push_back(ch);
+    
+    for (int i = 0; i < POP_SIZE; i++) {
+        aPopulation[i] = new_pop[i];
     }
-    for (int i = 0; i < ELITISM; i++) {
-        chromosome bestChild(best);
-        bestChild.mutate();
-        new_pop.push_back(bestChild);
-    }
-    population_fitness(& new_pop, aTab);
-    *aPopulation = new_pop;
-    return best.mFitness;
+    aPopulation.erase(aPopulation.begin() + POP_SIZE,aPopulation.end());
 }
 
 int main(int argc, char *argv[]) {
@@ -105,14 +183,23 @@ int main(int argc, char *argv[]) {
     srand( (unsigned)time(NULL) );
     vector<chromosome> population;
     create_population(&population);
-    chromosome best_chromosome = population[0];
-
-    table tab = table();
+    double gatesRange, errRange;
+    map<int, vector<chromosome>> nonDomSets = nonDominatedSort(population, gatesRange, errRange);
     
-    for (int iteration = 0; iteration < ITERATIONS; iteration++) {
-        population_fitness(&population, tab);
-        updatePopulation(&population, &best_chromosome, tab);
+    for (int i = 0; i < ITERATIONS; i++) {
+        updatePopulation(population);
+        if (i % 1000 == 0) {
+            printPopulation(population);
+        }
     }
-    best_chromosome.print(argv[1], argv[2], tab);
+    printPopulation(population);
     
+    
+    std::ofstream evalOut;
+    evalOut.open(argv[1], std::ios::out | std::ios::trunc );
+    std::ofstream circuitOut;
+    circuitOut.open(argv[2], std::ios::out | std::ios::trunc );
+    for (chromosome ch : population) {
+        ch.print(evalOut, circuitOut, tab);
+    }    
 }
